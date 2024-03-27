@@ -30,7 +30,6 @@ typedef struct
 
 // This is needed for Doom 2. Even bigger wads will need an even bigger buffer
 unsigned char filebuffer[ 16 * 1024 * 1024 ];// = NULL;
-//unsigned char filebuffer = NULL;
 
 extern wad_file_class_t stdc_wad_file;
 

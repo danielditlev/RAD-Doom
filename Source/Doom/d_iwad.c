@@ -722,7 +722,7 @@ char *D_FindIWAD(int mask, GameMission_t *mission, char *wadLocation)
         // Search through IWAD dirs for an IWAD with the given name.
 
         iwadfile = wadLocation;
-        
+    
         result = D_FindWADByName( iwadfile );
 
         if (result == NULL)
