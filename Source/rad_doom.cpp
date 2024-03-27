@@ -148,7 +148,7 @@ unsigned fiqRegOffset;
 u32		 fiqRegMask;
 u32		 temperature;
 
-extern "C" void startDoom();
+extern "C" void startDoom(int mode);
 
 CTimer				*pTimer;
 
@@ -281,8 +281,73 @@ extern "C" int (*functionAddress[]) (void);
 
 extern "C" { void printC64( const char *t, int x_, int y, unsigned int color ); }
 
-void doIntro()
+extern "C" { boolean M_FileExists(char *filename); }
+
+// Needed for printC64
+extern uint8_t font_bin[ 4096 ];
+extern uint8_t *charset;
+
+int showInfo() {
+	int exitKey = 1; // default to doom (I not II)
+
+	// Init charset 
+	charset = font_bin;
+
+	uint64_t curTick = GetuSec();
+
+	bool doomShareware = M_FileExists( "SD:RADDOOM/DOOM1.WAD" );
+	bool doom = M_FileExists( "SD:RADDOOM/DOOM.WAD" );
+	bool doomII = M_FileExists( "SD:RADDOOM/DOOM2.WAD" );
+
+	while (1) {
+
+		// Creates the black out line
+		int ofs[9][2]={ {-1,-1}, {-1,0},{-1,1}, {0,-1}, {0,1}, {1,-1},{1,0},{1,1},{0,0}};
+		for ( int p = 0; p < 9; p++ )
+		{
+			uint32_t color = 0xffffff;
+			uint32_t color2 = 0x5f5f5f;
+			int x = 4, spacing = 10;
+			int y = 10;
+
+			if ( p != 8 ) color = color2 = 0;
+			x += ofs[ p ][ 0 ];
+			y += ofs[ p ][ 1 ];
+
+			if (doom) {
+				printC64( "Doom ..... RETURN", x, y, color2 ); y += spacing;
+			}
+			if (doomII) {
+				printC64( "DoomII ... C= ", x, y, color2 ); y += spacing;
+			}
+			if (doomShareware) {
+				printC64( "Doom SW .. Any key", x, y, color2 ); y += spacing;
+			}
+			if (!doomShareware && !doom && !doomII) {
+				printC64( "No wads found :( ", x, y, color2 ); y += spacing;
+			}
+		}
+
+		// oh no, we're faster than 50 Hz, better wait :)
+		uint64_t waitStart = curTick;
+		do {
+			curTick = GetuSec();
+		} while ( curTick - waitStart < 1000 * 12 );
+
+		int key = (*functionAddress[1])();
+		if ( key ) {
+			exitKey = key;			
+			break;
+		}
+	}
+
+	return exitKey;
+}
+
+int doIntro()
 {
+	int exitKey = 1; // default to doom (I not II)
+
 	wavMemory = new u8[ 8192 * 1024 ];
 	
 	FILE *f = fopen( "SD:RADDOOM/dazzler_ex.wav", "rb" );
@@ -540,10 +605,12 @@ void doIntro()
 
 		int key = (*functionAddress[1])();
 
-		if ( key ) fadeOut = 0;
+		if ( key )  fadeOut = 0;
 
 		if ( fadeOut >= 256 )
 		{
+			exitKey = showInfo();
+
 			for ( int y = 0; y < 200; y ++ )
 			{
 				for ( int x = 0; x < 320; x += 2 )
@@ -573,6 +640,8 @@ void doIntro()
 	memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
 
 	EnableIRQs();
+
+	return exitKey;
 }
 
 #endif
@@ -612,14 +681,16 @@ void  CRAD::Run( void )
 	sidtimer = new CUserTimer( &m_Interrupt, sidSamplePlayIRQ, this, !true );
 	sidtimer->Initialize();
 
+	int doomVersion = 1;
+
 #ifdef SHOW_INTRO
-	doIntro();
+	doomVersion = doIntro();
 
 	extern void restartIncrementalBlitter();
 	restartIncrementalBlitter();
 #endif
 
-	startDoom();
+	startDoom(doomVersion);
 }
 
 extern "C" void radMountFileSystem()

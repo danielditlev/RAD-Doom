@@ -788,7 +788,7 @@ void D_IdentifyVersion(void)
         // detecting it based on the filename. Valid values are: "doom2",
         // "tnt" and "plutonia".
         //
-        p = M_CheckParmWithArgs("-pack", 1);
+        p = 0; //M_CheckParmWithArgs("-pack", 1);
         if (p > 0)
         {
             SetMissionForPackName(myargv[p + 1]);
@@ -1157,7 +1157,7 @@ static void LoadIwadDeh(void)
 //
 // D_DoomMain
 //
-void D_DoomMain (void)
+void D_DoomMain (int doomVersion)
 {
     int p;
     char file[256];
@@ -1360,8 +1360,17 @@ void D_DoomMain (void)
     I_AtExit(M_SaveDefaults, false);
 
     // Find main IWAD file and load it.
+    char wadLocation[] = "RADDOOM/doom1.wad";
+    char wadLocation2[] = "RADDOOM/doom2.wad";
+    char wadLocation3[] = "RADDOOM/doom.wad";
+
 #if 1
-    iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission);
+    if (doomVersion == 3)
+        iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission, wadLocation3);
+    else if (doomVersion == 2)
+        iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission, wadLocation2);
+    else
+        iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission, wadLocation);
 
     // None found?
 
@@ -1382,15 +1391,14 @@ extern lumpinfo_t **lumphash;
 lumphash = NULL;
 
 
-
     DEH_printf("W_Init: Init WADfiles.\n");
     D_AddFile(iwadfile);
-    //D_AddFile("RADDOOM/doom1.wad");
 #if ORIGCODE
     numiwadlumps = numlumps;
 #endif
 
-    W_CheckCorrectIWAD(doom);
+    // This breaks Doom2 support (even when called with doom2)
+    //W_CheckCorrectIWAD(doom);
 
     // Now that we've loaded the IWAD, we can figure out what gamemission
     // we're playing and which version of Vanilla Doom we need to emulate.
@@ -1572,26 +1580,26 @@ lumphash = NULL;
     // Check for -file in shareware
     if (modifiedgame)
     {
-	// These are the lumps that will be checked in IWAD,
-	// if any one is not present, execution will be aborted.
-	char name[23][8]=
-	{
-	    "e2m1","e2m2","e2m3","e2m4","e2m5","e2m6","e2m7","e2m8","e2m9",
-	    "e3m1","e3m3","e3m3","e3m4","e3m5","e3m6","e3m7","e3m8","e3m9",
-	    "dphoof","bfgga0","heada1","cybra1","spida1d1"
-	};
-	int i;
-	
-	if ( gamemode == shareware)
-	    I_Error(DEH_String("\nYou cannot -file with the shareware "
-			       "version. Register!"));
+        // These are the lumps that will be checked in IWAD,
+        // if any one is not present, execution will be aborted.
+        char name[23][8]=
+        {
+            "e2m1","e2m2","e2m3","e2m4","e2m5","e2m6","e2m7","e2m8","e2m9",
+            "e3m1","e3m3","e3m3","e3m4","e3m5","e3m6","e3m7","e3m8","e3m9",
+            "dphoof","bfgga0","heada1","cybra1","spida1d1"
+        };
+        int i;
+        
+        if ( gamemode == shareware)
+            I_Error(DEH_String("\nYou cannot -file with the shareware "
+                    "version. Register!"));
 
-	// Check for fake IWAD with right name,
-	// but w/o all the lumps of the registered version. 
-	if (gamemode == registered)
-	    for (i = 0;i < 23; i++)
-		if (W_CheckNumForName(name[i])<0)
-		    I_Error(DEH_String("\nThis is not the registered version."));
+        // Check for fake IWAD with right name,
+        // but w/o all the lumps of the registered version. 
+        if (gamemode == registered)
+            for (i = 0;i < 23; i++)
+            if (W_CheckNumForName(name[i])<0)
+                I_Error(DEH_String("\nThis is not the registered version."));
     }
 
     if (W_CheckNumForName("SS_START") >= 0
@@ -1651,8 +1659,8 @@ lumphash = NULL;
 
     if (p)
     {
-	startskill = myargv[p+1][0]-'1';
-	autostart = true;
+        startskill = myargv[p+1][0]-'1';
+        autostart = true;
     }
 
     //!
@@ -1666,9 +1674,9 @@ lumphash = NULL;
 
     if (p)
     {
-	startepisode = myargv[p+1][0]-'0';
-	startmap = 1;
-	autostart = true;
+        startepisode = myargv[p+1][0]-'0';
+        startmap = 1;
+        autostart = true;
     }
 	
     timelimit = 0;
@@ -1685,7 +1693,7 @@ lumphash = NULL;
 
     if (p)
     {
-	timelimit = atoi(myargv[p+1]);
+        timelimit = atoi(myargv[p+1]);
     }
 
     //!
@@ -1699,7 +1707,7 @@ lumphash = NULL;
 
     if (p)
     {
-	timelimit = 20;
+        timelimit = 20;
     }
 
     //!

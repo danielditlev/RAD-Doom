@@ -48,7 +48,7 @@
 #include <ctype.h>
 #include <arm_neon.h>
 
-extern void blitScreenDOOM( uint8_t *koalaData, uint32_t *kbEvents, uint8_t *nEvents, uint8_t *mouseData );
+extern void blitScreenDOOM( uint8_t *koalaData, uint32_t *kbEvents, uint8_t *nEvents, uint8_t *mouseData, uint8_t *joyData, uint32_t *mouseControlActive );
 extern void prepareC64();
 extern void disableInterrupts();
 extern void enableInterrupts();
@@ -951,10 +951,20 @@ int introShowFrame()
 	uint32_t  kbEvents[ 16 ];
 	uint8_t nEvents = 0;
 	uint8_t mouseData[ 4 ];
-	blitScreenDOOM( koalaData,  kbEvents, &nEvents, mouseData );
+	uint8_t joyData[ 5 ];
+	blitScreenDOOM( koalaData,  kbEvents, &nEvents, mouseData, joyData, &mouseControlActive );
 
-	if ( nEvents )
+	if ( nEvents ) {
+
+		for (int i=0; i<nEvents; i++) {
+			int key = kbEvents[i];			
+			key %= 256; // Ignore if pressed or released
+			if (key == VK_COMMODORE) return 2;
+			if (key == VK_RETURN) return 3;
+		}
+
 		return 1;
+	}
 
 	return 0;
 }
@@ -1042,6 +1052,10 @@ void handleMouseUpdate( uint8_t *mouseData )
 	mouseDoomData[ 2 ] = mouseData[ 2 ];
 	mouseDoomData[ 3 ] = 1; // event generated
 }
+
+#define NUM_JOY_KEYS 5
+const unsigned char VK_CODES_JOY[NUM_JOY_KEYS] = { VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_COMMODORE };
+uint8_t joyDataPrev[ NUM_JOY_KEYS ] = { 0,0,0,0,0 };
 
 void DG_DrawFrame()
 {
@@ -1204,12 +1218,25 @@ void DG_DrawFrame()
 	uint8_t nEvents = 0;
 
 	uint8_t mouseData[ 4 ];
-	blitScreenDOOM( koalaData,  kbEvents, &nEvents, mouseData );
+	uint8_t joyData[ 5 ];
+	blitScreenDOOM( koalaData, kbEvents, &nEvents, mouseData, joyData, &mouseControlActive );
 
+	if (!mouseControlActive) {
+		// Process joystick input by converting joystick state to key presses
+		for (int i = 0; i < NUM_JOY_KEYS; ++i) {
+			if (joyData[i] == 1 && joyDataPrev[i] == 0) {
+				addKeyToQueue(1, VK_CODES_JOY[i]); // key down
+			} else if (joyData[i] == 0 && joyDataPrev[i] == 1) {
+				addKeyToQueue(0, VK_CODES_JOY[i]); // key up
+			}
+		}
 
-	handleMouseUpdate( mouseData );
-
-	// todo: activate mouse by pressing button
+		// Update previous joystick data
+		memcpy(joyDataPrev, joyData, NUM_JOY_KEYS);		
+	} else {
+		// todo: activate mouse by pressing button
+		handleMouseUpdate( mouseData );
+	}
 
 	for ( int i = 0; i < nEvents; i++ )
 	{

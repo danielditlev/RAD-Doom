@@ -700,9 +700,7 @@ char *D_TryFindWADByName(char *filename)
 // should be executed (notably loading PWADs).
 //
 
-char d1wad[] = "RADDOOM/doom1.wad";
-
-char *D_FindIWAD(int mask, GameMission_t *mission)
+char *D_FindIWAD(int mask, GameMission_t *mission, char *wadLocation)
 {
     char *result;
     char *iwadfile;
@@ -723,9 +721,9 @@ char *D_FindIWAD(int mask, GameMission_t *mission)
     {
         // Search through IWAD dirs for an IWAD with the given name.
 
-        iwadfile = d1wad;
-
-        result = D_FindWADByName( "RADDOOM/doom1.wad" );
+        iwadfile = wadLocation;
+        
+        result = D_FindWADByName( iwadfile );
 
         if (result == NULL)
         {
