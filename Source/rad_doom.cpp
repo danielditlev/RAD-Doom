@@ -676,6 +676,8 @@ char* doIntro()
 
 		if ( fadeOut >= 256 )
 		{
+			// Stop sounds here
+			memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
 			wadPath = showInfo();
 
 			for ( int y = 0; y < 200; y ++ )
@@ -704,7 +706,7 @@ char* doIntro()
 
 		introFC ++;
 	}
-	memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
+	//memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
 
 	EnableIRQs();
 
