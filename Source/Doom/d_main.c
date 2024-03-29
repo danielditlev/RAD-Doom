@@ -1157,7 +1157,7 @@ static void LoadIwadDeh(void)
 //
 // D_DoomMain
 //
-void D_DoomMain (int doomVersion)
+void D_DoomMain (char* wadPath)
 {
     int p;
     char file[256];
@@ -1359,18 +1359,8 @@ void D_DoomMain (int doomVersion)
     // Save configuration at exit.
     I_AtExit(M_SaveDefaults, false);
 
-    // Find main IWAD file and load it.
-    char wadLocation[] = "RADDOOM/doom1.wad";
-    char wadLocation2[] = "RADDOOM/doom2.wad";
-    char wadLocation3[] = "RADDOOM/doom.wad";
-
 #if 1
-    if (doomVersion == 3)
-        iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission, wadLocation3);
-    else if (doomVersion == 2)
-        iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission, wadLocation2);
-    else
-        iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission, wadLocation);
+    iwadfile = D_FindIWAD(IWAD_MASK_DOOM, &gamemission, wadPath);
 
     // None found?
 

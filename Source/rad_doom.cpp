@@ -148,7 +148,7 @@ unsigned fiqRegOffset;
 u32		 fiqRegMask;
 u32		 temperature;
 
-extern "C" void startDoom(int mode);
+extern "C" void startDoom(char* wadPath);
 
 CTimer				*pTimer;
 
@@ -287,66 +287,128 @@ extern "C" { boolean M_FileExists(char *filename); }
 extern uint8_t font_bin[ 4096 ];
 extern uint8_t *charset;
 
-int showInfo() {
-	int exitKey = 1; // default to doom (I not II)
+void _printC64( const char *t, int x, int y, unsigned int color = 0xffffff) {
+	// Creates the black outline
+	int ofs[9][2] = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}, {0, 0}};
+	for (int p = 0; p < 9; p++) {
+		uint32_t color1 = color;
+		uint32_t color2 = 0x5f5f5f;
 
-	// Init charset 
-	charset = font_bin;
+		if (p != 8) color1 = color2 = 0;
+		x += ofs[p][0];
+		y += ofs[p][1];
 
-	uint64_t curTick = GetuSec();
-
-	bool doomShareware = M_FileExists( "SD:RADDOOM/DOOM1.WAD" );
-	bool doom = M_FileExists( "SD:RADDOOM/DOOM.WAD" );
-	bool doomII = M_FileExists( "SD:RADDOOM/DOOM2.WAD" );
-
-	while (1) {
-
-		// Creates the black out line
-		int ofs[9][2]={ {-1,-1}, {-1,0},{-1,1}, {0,-1}, {0,1}, {1,-1},{1,0},{1,1},{0,0}};
-		for ( int p = 0; p < 9; p++ )
-		{
-			uint32_t color = 0xffffff;
-			uint32_t color2 = 0x5f5f5f;
-			int x = 4, spacing = 10;
-			int y = 10;
-
-			if ( p != 8 ) color = color2 = 0;
-			x += ofs[ p ][ 0 ];
-			y += ofs[ p ][ 1 ];
-
-			if (doom) {
-				printC64( "Doom ..... RETURN", x, y, color2 ); y += spacing;
-			}
-			if (doomII) {
-				printC64( "DoomII ... C= ", x, y, color2 ); y += spacing;
-			}
-			if (doomShareware) {
-				printC64( "Doom SW .. Any key", x, y, color2 ); y += spacing;
-			}
-			if (!doomShareware && !doom && !doomII) {
-				printC64( "No wads found :( ", x, y, color2 ); y += spacing;
-			}
-		}
-
-		// oh no, we're faster than 50 Hz, better wait :)
-		uint64_t waitStart = curTick;
-		do {
-			curTick = GetuSec();
-		} while ( curTick - waitStart < 1000 * 12 );
-
-		int key = (*functionAddress[1])();
-		if ( key ) {
-			exitKey = key;			
-			break;
-		}
+		printC64(t, x, y, color2);
 	}
-
-	return exitKey;
 }
 
-int doIntro()
+/*
+    { "doom2.wad",    doom2,     commercial, "Doom II" },
+    { "plutonia.wad", pack_plut, commercial, "Final Doom: Plutonia Experiment" },
+    { "tnt.wad",      pack_tnt,  commercial, "Final Doom: TNT: Evilution" },
+    { "doom.wad",     doom,      retail,     "Doom" },
+    { "DOOM1.WAD",    doom,      shareware,  "Doom Shareware" },
+    { "chex.wad",     pack_chex, shareware,  "Chex Quest" },
+    { "hacx.wad",     pack_hacx, commercial, "Hacx" },
+    { "freedm.wad",   doom2,     commercial, "FreeDM" },
+    { "freedoom2.wad", doom2,    commercial, "Freedoom: Phase 2" },
+    { "freedoom1.wad", doom,     retail,     "Freedoom: Phase 1" },
+    { "heretic.wad",  heretic,   retail,     "Heretic" },
+    { "heretic1.wad", heretic,   shareware,  "Heretic Shareware" },
+    { "hexen.wad",    hexen,     commercial, "Hexen" },
+    //{ "strife0.wad",  strife,    commercial, "Strife" }, // haleyjd: STRIFE-FIXME
+    { "strife1.wad",  strife,    commercial, "Strife" },
+*/
+
+// Menu item structure
+typedef struct {
+    char* path;
+    char* name;
+    char key; // To store the generated menu key
+    char menuLine[30]; // To store the display text
+    bool exists; // Flag indicating whether the file exists or not
+} MenuItem;
+
+char* showInfo() {	
+    // Init charset  
+    charset = font_bin;
+
+	// All the WADS supported by doomgeneric .. not sure all works with RAD yet
+    MenuItem items[] = {
+        {"SD:RADDOOM/DOOM.WAD", "Doom SW", 0, "", false},
+        {"SD:RADDOOM/DOOM1.WAD", "Doom", 0, "", false},
+        {"SD:RADDOOM/DOOM2.WAD", "DoomII", 0, "", false},
+        {"SD:RADDOOM/plutonia.wad", "FDoom P.E.", 0, "", false},
+        {"SD:RADDOOM/tnt.wad", "FDoom TNT E.", 0, "", false},
+        {"SD:RADDOOM/chex.wad", "Chex Quest", 0, "", false},
+        {"SD:RADDOOM/hacx.wad", "Hacx", 0, "", false},
+        {"SD:RADDOOM/freedm.wad", "FreeDM", 0, "", false},
+        {"SD:RADDOOM/freedoom1.wad", "Freedoom P1", 0, "", false},
+        {"SD:RADDOOM/freedoom2.wad", "Freedoom P2", 0, "", false},
+        {"SD:RADDOOM/heretic.wad", "Heretic", 0, "", false},
+        {"SD:RADDOOM/heretic1.wad", "Heretic SW", 0, "", false},
+        {"SD:RADDOOM/hexen.wad", "Hexen", 0, "", false},
+        {"SD:RADDOOM/strife1.wad", "Strife", 0, "", false}
+    };
+
+    char nextMenuKey = 49; // ASCII '1'
+
+    // Check if files exist and prepare menu lines
+    for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+        items[i].exists = M_FileExists(items[i].path);
+        if (items[i].exists) {
+            items[i].key = nextMenuKey++;
+            sprintf(items[i].menuLine, "%d.) %s", items[i].key - 48, items[i].name);
+        }
+    }
+
+    uint64_t curTick = GetuSec();
+    char debug[30];
+    char lastKeyPressed = 0;
+    sprintf(debug, "debug: %d", lastKeyPressed);
+
+    while (1) {
+        int x = 4, y = 10, spacing = 10;
+
+        bool noWads = true;
+        for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+            if (items[i].exists) {
+                _printC64(items[i].menuLine, x, y); y += spacing;
+                noWads = false;
+            }
+        }
+
+        if (noWads) {            
+            _printC64("No wads found :(", x, y); y += spacing;
+        }
+
+        if (lastKeyPressed) {
+            _printC64(debug, x, y); y += spacing;
+        }
+
+        // oh no, we're faster than 50 Hz, better wait :)
+        uint64_t waitStart = curTick;
+        do {
+            curTick = GetuSec();
+        } while (curTick - waitStart < 1000 * 12);
+
+        char key = (*functionAddress[1])();
+        for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+            if (key == items[i].key && items[i].exists) {
+                return items[i].path + 3; // Omit 'SD:'
+            }
+        }
+
+        lastKeyPressed = key;
+        sprintf(debug, "debug: %d", lastKeyPressed);
+    }
+
+    return "";
+}
+
+char* doIntro()
 {
-	int exitKey = 1; // default to doom (I not II)
+	char* wadPath = "RADDOOM/DOOM1.WAD"; // default to doom sw
 
 	wavMemory = new u8[ 8192 * 1024 ];
 	
@@ -609,7 +671,7 @@ int doIntro()
 
 		if ( fadeOut >= 256 )
 		{
-			exitKey = showInfo();
+			wadPath = showInfo();
 
 			for ( int y = 0; y < 200; y ++ )
 			{
@@ -641,7 +703,7 @@ int doIntro()
 
 	EnableIRQs();
 
-	return exitKey;
+	return wadPath;
 }
 
 #endif
@@ -681,16 +743,16 @@ void  CRAD::Run( void )
 	sidtimer = new CUserTimer( &m_Interrupt, sidSamplePlayIRQ, this, !true );
 	sidtimer->Initialize();
 
-	int doomVersion = 1;
+	char* wadPath = "RADDOOM/DOOM1.WAD";
 
 #ifdef SHOW_INTRO
-	doomVersion = doIntro();
+	wadPath = doIntro();
 
 	extern void restartIncrementalBlitter();
 	restartIncrementalBlitter();
 #endif
 
-	startDoom(doomVersion);
+	startDoom(wadPath);
 }
 
 extern "C" void radMountFileSystem()

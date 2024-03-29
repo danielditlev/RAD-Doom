@@ -37,7 +37,7 @@ void M_FindResponseFile(void);
 
 void dg_Create();
 
-void startDoom(int doomVersion)
+void startDoom(char* wadPath)
 {
     myargc = 0;
     myargv = NULL;
@@ -54,7 +54,7 @@ void startDoom(int doomVersion)
 
 	dg_Create();
 
-	D_DoomMain (doomVersion);
+	D_DoomMain (wadPath);
 
     //return 0;
 }

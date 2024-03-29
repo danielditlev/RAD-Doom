@@ -955,15 +955,9 @@ int introShowFrame()
 	blitScreenDOOM( koalaData,  kbEvents, &nEvents, mouseData, joyData, &mouseControlActive );
 
 	if ( nEvents ) {
-
-		for (int i=0; i<nEvents; i++) {
-			int key = kbEvents[i];			
-			key %= 256; // Ignore if pressed or released
-			if (key == VK_COMMODORE) return 2;
-			if (key == VK_RETURN) return 3;
-		}
-
-		return 1;
+		int key = kbEvents[0]; // Just look at the first key
+		key %= 256; // Ignore if pressed or released
+		return key;
 	}
 
 	return 0;
