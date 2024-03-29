@@ -395,6 +395,11 @@ char* showInfo() {
         char key = (*functionAddress[1])();
         for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
             if (key == items[i].key && items[i].exists) {
+				
+				// Clear screen before we return;
+				extern unsigned int *DG_ScreenBuffer;
+				memset( DG_ScreenBuffer, 0, 320 * 200 * 4 );
+
                 return items[i].path + 3; // Omit 'SD:'
             }
         }
