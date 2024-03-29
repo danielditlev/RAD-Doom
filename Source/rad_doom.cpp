@@ -291,14 +291,14 @@ void _printC64( const char *t, int x, int y, unsigned int color = 0xffffff) {
 	// Creates the black outline
 	int ofs[9][2] = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}, {0, 0}};
 	for (int p = 0; p < 9; p++) {
-		uint32_t color1 = color;
-		uint32_t color2 = 0x5f5f5f;
+		uint32_t _color = color;
 
-		if (p != 8) color1 = color2 = 0;
+		if (p != 8) _color = 0; // Black outline
+
 		x += ofs[p][0];
 		y += ofs[p][1];
 
-		printC64(t, x, y, color2);
+		printC64(t, x, y, _color);
 	}
 }
 
@@ -351,21 +351,21 @@ char* showInfo() {
         {"SD:RADDOOM/strife1.wad", "Strife", 0, "", false}
     };
 
-    char nextMenuKey = 49; // ASCII '1'
+    char nextMenuKey = 65; // ASCII 'A'
 
     // Check if files exist and prepare menu lines
     for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
         items[i].exists = M_FileExists(items[i].path);
         if (items[i].exists) {
             items[i].key = nextMenuKey++;
-            sprintf(items[i].menuLine, "%d.) %s", items[i].key - 48, items[i].name);
+            sprintf(items[i].menuLine, "%c.) %s", items[i].key, items[i].name);
         }
     }
 
     uint64_t curTick = GetuSec();
     char debug[30];
     char lastKeyPressed = 0;
-    sprintf(debug, "debug: %d", lastKeyPressed);
+    sprintf(debug, "pressed: %c", lastKeyPressed);
 
     while (1) {
         int x = 4, y = 10, spacing = 10;
@@ -373,7 +373,7 @@ char* showInfo() {
         bool noWads = true;
         for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
             if (items[i].exists) {
-                _printC64(items[i].menuLine, x, y); y += spacing;
+                _printC64(items[i].menuLine, x, y, (i%2) ? 0x0000FF : 0xFFFFFF); y += spacing;
                 noWads = false;
             }
         }
@@ -400,7 +400,7 @@ char* showInfo() {
         }
 
         lastKeyPressed = key;
-        sprintf(debug, "debug: %d", lastKeyPressed);
+        //sprintf(debug, "pressed: %c", lastKeyPressed);
     }
 
     return "";
