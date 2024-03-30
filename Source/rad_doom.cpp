@@ -274,7 +274,7 @@ const uint8_t ditherMatrix4x4_line[ 4 * 4 ] = {
 	 8, 12, 10, 14,
 	 3,  7,  1,  5,
 	11, 15,  9, 13 };
-	
+
 extern int palette_pepto[ 16 ][ 3 ];
 
 extern "C" int (*functionAddress[]) (void);
@@ -329,6 +329,23 @@ typedef struct {
     bool exists; // Flag indicating whether the file exists or not
 } MenuItem;
 
+const unsigned int BLACK      = 0x000000;
+const unsigned int WHITE      = 0xFFFFFF;
+const unsigned int RED        = 0x68372B;
+const unsigned int CYAN       = 0x70A4B2;
+const unsigned int PURPLE     = 0x6F3D86;
+const unsigned int GREEN      = 0x588D43;
+const unsigned int BLUE       = 0x352879;
+const unsigned int YELLOW     = 0xB8C76F;
+const unsigned int ORANGE     = 0x6F4F25;
+const unsigned int BROWN      = 0x433900;
+const unsigned int PINK       = 0x9A6759;
+const unsigned int DARKGREY   = 0x444444;
+const unsigned int GREY       = 0x6C6C6C;
+const unsigned int LIGHTGREEN = 0x9AD284;
+const unsigned int LIGHTBLUE  = 0x6C5EB5;
+const unsigned int LIGHTGREY  = 0x959595;
+
 char* showInfo() {	
     // Init charset  
     charset = font_bin;
@@ -351,16 +368,23 @@ char* showInfo() {
         {"SD:RADDOOM/strife1.wad", "Strife", 0, "", false}
     };
 
+
     char nextMenuKey = 65; // ASCII 'A'
 
     // Check if files exist and prepare menu lines
-    for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+	int _i = -1;
+	int numItems = sizeof(items) / sizeof(items[0]);
+    for (int i = 0; i < numItems; i++) {
         items[i].exists = M_FileExists(items[i].path);
         if (items[i].exists) {
             items[i].key = nextMenuKey++;
             sprintf(items[i].menuLine, "%c.) %s", items[i].key, items[i].name);
+			_i = i; // store index of last found wad
         }
     }
+
+	// Only one wad found .. use that one
+	if (nextMenuKey == 66) return items[_i].path + 3; // Omit 'SD:'
 
     uint64_t curTick = GetuSec();
     char debug[30];
@@ -368,23 +392,23 @@ char* showInfo() {
     sprintf(debug, "pressed: %c", lastKeyPressed);
 
     while (1) {
+		printC64("ditlew", 110, 180, DARKGREY);
+
         int x = 4, y = 10, spacing = 10;
 
-        bool noWads = true;
-        for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+        for (int i = 0; i < numItems; i++) {
             if (items[i].exists) {
-                _printC64(items[i].menuLine, x, y, (i%2) ? 0x0000FF : 0xFFFFFF); y += spacing;
-                noWads = false;
+                _printC64(items[i].menuLine, x, y, (items[i].key % 2) ? WHITE : BLUE); y += spacing;
             }
         }
 
-        if (noWads) {            
+        if (_i == -1) {
             _printC64("No wads found :(", x, y); y += spacing;
         }
 
-        if (lastKeyPressed) {
-            _printC64(debug, x, y); y += spacing;
-        }
+        // if (lastKeyPressed) {
+        //     _printC64(debug, x, y); y += spacing;
+        // }
 
         // oh no, we're faster than 50 Hz, better wait :)
         uint64_t waitStart = curTick;
@@ -405,7 +429,7 @@ char* showInfo() {
         }
 
         lastKeyPressed = key;
-        //sprintf(debug, "pressed: %c", lastKeyPressed);
+        sprintf(debug, "pressed: %c", lastKeyPressed);
     }
 
     return "";
