@@ -287,38 +287,17 @@ extern "C" { boolean M_FileExists(char *filename); }
 extern uint8_t font_bin[ 4096 ];
 extern uint8_t *charset;
 
-void _printC64( const char *t, int x, int y, unsigned int color = 0xffffff) {
+void _printC64( const char *t, int x, int y, unsigned int color = 0xffffff, unsigned int outline_color = 0x0) {
 	// Creates the black outline
 	int ofs[9][2] = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}, {0, 0}};
 	for (int p = 0; p < 9; p++) {
 		uint32_t _color = color;
 
-		if (p != 8) _color = 0; // Black outline
+		if (p != 8) _color = outline_color; // Black outline
 
-		x += ofs[p][0];
-		y += ofs[p][1];
-
-		printC64(t, x, y, _color);
+		printC64(t, x + ofs[p][0], y + ofs[p][1], _color);
 	}
 }
-
-/*
-    { "doom2.wad",    doom2,     commercial, "Doom II" },
-    { "plutonia.wad", pack_plut, commercial, "Final Doom: Plutonia Experiment" },
-    { "tnt.wad",      pack_tnt,  commercial, "Final Doom: TNT: Evilution" },
-    { "doom.wad",     doom,      retail,     "Doom" },
-    { "DOOM1.WAD",    doom,      shareware,  "Doom Shareware" },
-    { "chex.wad",     pack_chex, shareware,  "Chex Quest" },
-    { "hacx.wad",     pack_hacx, commercial, "Hacx" },
-    { "freedm.wad",   doom2,     commercial, "FreeDM" },
-    { "freedoom2.wad", doom2,    commercial, "Freedoom: Phase 2" },
-    { "freedoom1.wad", doom,     retail,     "Freedoom: Phase 1" },
-    { "heretic.wad",  heretic,   retail,     "Heretic" },
-    { "heretic1.wad", heretic,   shareware,  "Heretic Shareware" },
-    { "hexen.wad",    hexen,     commercial, "Hexen" },
-    //{ "strife0.wad",  strife,    commercial, "Strife" }, // haleyjd: STRIFE-FIXME
-    { "strife1.wad",  strife,    commercial, "Strife" },
-*/
 
 // Menu item structure
 typedef struct {
@@ -329,45 +308,44 @@ typedef struct {
     bool exists; // Flag indicating whether the file exists or not
 } MenuItem;
 
-const unsigned int BLACK      = 0x000000;
-const unsigned int WHITE      = 0xFFFFFF;
-const unsigned int RED        = 0x68372B;
-const unsigned int CYAN       = 0x70A4B2;
-const unsigned int PURPLE     = 0x6F3D86;
-const unsigned int GREEN      = 0x588D43;
-const unsigned int BLUE       = 0x352879;
-const unsigned int YELLOW     = 0xB8C76F;
-const unsigned int ORANGE     = 0x6F4F25;
-const unsigned int BROWN      = 0x433900;
-const unsigned int PINK       = 0x9A6759;
-const unsigned int DARKGREY   = 0x444444;
-const unsigned int GREY       = 0x6C6C6C;
-const unsigned int LIGHTGREEN = 0x9AD284;
-const unsigned int LIGHTBLUE  = 0x6C5EB5;
-const unsigned int LIGHTGREY  = 0x959595;
+const unsigned int BLACK      = 0x000000; //  0
+const unsigned int WHITE      = 0xFFFFFF; //  1
+const unsigned int RED        = 0x68372B; //  2
+const unsigned int CYAN       = 0x70A4B2; //  3
+const unsigned int PURPLE     = 0x6F3D86; //  4
+const unsigned int GREEN      = 0x588D43; //  5
+const unsigned int BLUE       = 0x352879; //  6
+const unsigned int YELLOW     = 0xB8C76F; //  7
+const unsigned int ORANGE     = 0x6F4F25; //  8
+const unsigned int BROWN      = 0x433900; //  9
+const unsigned int PINK       = 0x9A6759; // 10
+const unsigned int DARKGREY   = 0x444444; // 11
+const unsigned int GREY       = 0x6C6C6C; // 12
+const unsigned int LIGHTGREEN = 0x9AD284; // 13
+const unsigned int LIGHTBLUE  = 0x6C5EB5; // 14
+const unsigned int LIGHTGREY  = 0x959595; // 15
 
-char* showInfo() {	
+// All the WADS supported by doomgeneric .. not sure all works with RAD yet
+MenuItem items[] = {
+	{"SD:RADDOOM/DOOM.WAD", "Doom SW", 0, "", false},
+	{"SD:RADDOOM/DOOM1.WAD", "Doom", 0, "", false},
+	{"SD:RADDOOM/DOOM2.WAD", "DoomII", 0, "", false},
+	{"SD:RADDOOM/plutonia.wad", "FDoom P.E.", 0, "", false},
+	{"SD:RADDOOM/tnt.wad", "FDoom TNT E.", 0, "", false},
+	{"SD:RADDOOM/chex.wad", "Chex Quest", 0, "", false},
+	{"SD:RADDOOM/hacx.wad", "Hacx", 0, "", false},
+	{"SD:RADDOOM/freedm.wad", "FreeDM", 0, "", false},
+	{"SD:RADDOOM/freedoom1.wad", "Freedoom P1", 0, "", false},
+	{"SD:RADDOOM/freedoom2.wad", "Freedoom P2", 0, "", false}
+};
+
+
+int showInfo() {
+	extern unsigned int *DG_ScreenBuffer;
+	memset( DG_ScreenBuffer, 11, 320 * 200 * 4 );
+
     // Init charset  
     charset = font_bin;
-
-	// All the WADS supported by doomgeneric .. not sure all works with RAD yet
-    MenuItem items[] = {
-        {"SD:RADDOOM/DOOM.WAD", "Doom SW", 0, "", false},
-        {"SD:RADDOOM/DOOM1.WAD", "Doom", 0, "", false},
-        {"SD:RADDOOM/DOOM2.WAD", "DoomII", 0, "", false},
-        {"SD:RADDOOM/plutonia.wad", "FDoom P.E.", 0, "", false},
-        {"SD:RADDOOM/tnt.wad", "FDoom TNT E.", 0, "", false},
-        {"SD:RADDOOM/chex.wad", "Chex Quest", 0, "", false},
-        {"SD:RADDOOM/hacx.wad", "Hacx", 0, "", false},
-        {"SD:RADDOOM/freedm.wad", "FreeDM", 0, "", false},
-        {"SD:RADDOOM/freedoom1.wad", "Freedoom P1", 0, "", false},
-        {"SD:RADDOOM/freedoom2.wad", "Freedoom P2", 0, "", false},
-        {"SD:RADDOOM/heretic.wad", "Heretic", 0, "", false},
-        {"SD:RADDOOM/heretic1.wad", "Heretic SW", 0, "", false},
-        {"SD:RADDOOM/hexen.wad", "Hexen", 0, "", false},
-        {"SD:RADDOOM/strife1.wad", "Strife", 0, "", false}
-    };
-
 
     char nextMenuKey = 65; // ASCII 'A'
 
@@ -384,7 +362,7 @@ char* showInfo() {
     }
 
 	// Only one wad found .. use that one
-	if (nextMenuKey == 66) return items[_i].path + 3; // Omit 'SD:'
+	if (nextMenuKey == 66) return _i;
 
     uint64_t curTick = GetuSec();
     char debug[30];
@@ -421,10 +399,9 @@ char* showInfo() {
             if (key == items[i].key && items[i].exists) {
 				
 				// Clear screen before we return;
-				extern unsigned int *DG_ScreenBuffer;
 				memset( DG_ScreenBuffer, 0, 320 * 200 * 4 );
 
-                return items[i].path + 3; // Omit 'SD:'
+                return i;
             }
         }
 
@@ -432,12 +409,12 @@ char* showInfo() {
         sprintf(debug, "pressed: %c", lastKeyPressed);
     }
 
-    return "";
+    return 0;
 }
 
-char* doIntro()
+int doIntro()
 {
-	char* wadPath = "RADDOOM/DOOM1.WAD"; // default to doom sw
+	int itemIndex = 0;
 
 	wavMemory = new u8[ 8192 * 1024 ];
 	
@@ -702,7 +679,7 @@ char* doIntro()
 		{
 			// Stop sounds here
 			memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
-			wadPath = showInfo();
+			itemIndex = showInfo();
 
 			for ( int y = 0; y < 200; y ++ )
 			{
@@ -734,7 +711,7 @@ char* doIntro()
 
 	EnableIRQs();
 
-	return wadPath;
+	return itemIndex;
 }
 
 #endif
@@ -774,16 +751,16 @@ void  CRAD::Run( void )
 	sidtimer = new CUserTimer( &m_Interrupt, sidSamplePlayIRQ, this, !true );
 	sidtimer->Initialize();
 
-	char* wadPath = "RADDOOM/DOOM1.WAD";
+	int itemIndex = 0;
 
 #ifdef SHOW_INTRO
-	wadPath = doIntro();
+	itemIndex = doIntro();
 
 	extern void restartIncrementalBlitter();
 	restartIncrementalBlitter();
 #endif
 
-	startDoom(wadPath);
+	startDoom(items[itemIndex].path + 3); // Omit SD:
 }
 
 extern "C" void radMountFileSystem()

@@ -1387,8 +1387,7 @@ lumphash = NULL;
     numiwadlumps = numlumps;
 #endif
 
-    // This breaks Doom2 support (even when called with doom2)
-    //W_CheckCorrectIWAD(doom);
+    W_CheckCorrectIWAD(doom);
 
     // Now that we've loaded the IWAD, we can figure out what gamemission
     // we're playing and which version of Vanilla Doom we need to emulate.

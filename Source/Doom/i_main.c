@@ -31,7 +31,7 @@
 // calls all startup code, parses command line options.
 //
 
-void D_DoomMain (int doomVersion);
+void D_DoomMain (char* wadPath);
 
 void M_FindResponseFile(void);
 
