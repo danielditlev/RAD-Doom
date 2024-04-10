@@ -130,6 +130,10 @@ static int displayHelp = 0;
 static int flickerMode = 0;
 static int16_t brightnessScale = 20;
 
+void setBrightness(uint8_t level) {
+	brightnessScale = level;
+} 
+
 void setDisplayPreset( int p )
 {
 	switch ( p )
@@ -975,7 +979,7 @@ int introShowFrame()
 
 int (*functionAddress[]) (void) = {
    introPrepare,
-   introShowFrame,
+   introShowFrame
 };
 
 

@@ -38,6 +38,7 @@
 #include "linux/kernel.h"
 #include "config.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <circle/usertimer.h>
@@ -325,6 +326,28 @@ const unsigned int LIGHTGREEN = 0x9AD284; // 13
 const unsigned int LIGHTBLUE  = 0x6C5EB5; // 14
 const unsigned int LIGHTGREY  = 0x959595; // 15
 
+
+
+// Ensure we dont go out of buffer
+inline void setPixel(int index, uint32_t color) {
+	extern unsigned int *DG_ScreenBuffer;
+
+	if (index >= 64000) return; // Larger than 320x200 is no go 
+    DG_ScreenBuffer[index] = color;
+}
+
+void c64Fill(int x, int y, int width, int height, uint32_t color) {
+	// DD: Wonder if a menset per row would be faster here ..
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+            // Calculate the index in the DG_ScreenBuffer for each pixel in the square
+            int index = (x + col) + (y + row) * 320; // Assuming the screen is 320 pixels wide
+
+			setPixel(index, color);
+        }
+    }
+}
+
 // All the WADS supported by doomgeneric .. not sure all works with RAD yet
 MenuItem items[] = {
 	{"SD:RADDOOM/DOOM.WAD", "Doom SW", 0, "", false},
@@ -339,10 +362,52 @@ MenuItem items[] = {
 	{"SD:RADDOOM/freedoom2.wad", "Freedoom P2", 0, "", false}
 };
 
+const u_int8_t _FSIZE = 10;
+const u_int8_t _WIDTH = 320 / _FSIZE;
+const u_int8_t _HEIGHT = 200 / _FSIZE;
+
+// Flames buffer
+unsigned int FLAMES[_WIDTH * _HEIGHT];
+
+void generateFlamesBase() {
+    for (int x = 0; x < _WIDTH; ++x) {
+        FLAMES[(_HEIGHT - 1) * _WIDTH + x] = WHITE;
+    }
+}
+
+void updateFlames() {
+    for (int y = 0; y < _HEIGHT - 1; ++y) {
+        for (int x = 0; x < _WIDTH; ++x) {
+            int sameColorNeighbors = 0;
+            unsigned int belowColor = FLAMES[(y + 1) * _WIDTH + x];
+            
+            if (x > 0          && FLAMES[y * _WIDTH + (x - 1)] == belowColor) sameColorNeighbors++;
+            if (x < _WIDTH - 1 && FLAMES[y * _WIDTH + (x + 1)] == belowColor) sameColorNeighbors++;
+            
+            float transitionChance = (float)rand() / RAND_MAX - 0.1f * sameColorNeighbors;
+            
+            if (belowColor == WHITE && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = YELLOW;
+            } else if (belowColor == YELLOW && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = ORANGE;
+            } else if (belowColor == ORANGE && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = RED;
+            } else if (belowColor == RED && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = BLACK;
+            } else {
+                FLAMES[y * _WIDTH + x] = belowColor; // Keep the same color if no transition
+            }
+        }
+    }
+}
+
+extern "C" void setBrightness(uint8_t level);
 
 int showInfo() {
 	extern unsigned int *DG_ScreenBuffer;
-	memset( DG_ScreenBuffer, 11, 320 * 200 * 4 );
+	setBrightness(12); // Lower the brightness to match the original C64 colors
+
+	memset( DG_ScreenBuffer, BLACK, 320 * 200 * 4 );
 
     // Init charset  
     charset = font_bin;
@@ -369,14 +434,26 @@ int showInfo() {
     char lastKeyPressed = 0;
     sprintf(debug, "pressed: %c", lastKeyPressed);
 
+	srand(0);
+	generateFlamesBase();
+
+	u_int16_t fps = 0;
     while (1) {
-		printC64("ditlew", 110, 180, DARKGREY);
+
+		// Lower animation speed
+		if (fps++ % 4 == 0) updateFlames();
+
+		for (int row=0; row < _HEIGHT; row ++) 
+			for (int col=0; col < _WIDTH; col ++)
+				c64Fill(col * _FSIZE, row * _FSIZE, _FSIZE, _FSIZE, FLAMES[row * _WIDTH + col]);
+
+		printC64("ditlew", 110, 182, BLACK);
 
         int x = 4, y = 10, spacing = 10;
 
         for (int i = 0; i < numItems; i++) {
             if (items[i].exists) {
-                _printC64(items[i].menuLine, x, y, (items[i].key % 2) ? WHITE : BLUE); y += spacing;
+                _printC64(items[i].menuLine, x, y, (items[i].key % 2) ? WHITE : CYAN); y += spacing;
             }
         }
 
@@ -401,6 +478,7 @@ int showInfo() {
 				// Clear screen before we return;
 				memset( DG_ScreenBuffer, 0, 320 * 200 * 4 );
 
+				setBrightness(20);
                 return i;
             }
         }
@@ -408,6 +486,8 @@ int showInfo() {
         lastKeyPressed = key;
         sprintf(debug, "pressed: %c", lastKeyPressed);
     }
+
+	setBrightness(20);
 
     return 0;
 }
