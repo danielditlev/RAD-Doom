@@ -573,6 +573,9 @@ void D_DoAdvanceDemo (void)
 	break;
     }
 
+    // Let the c64UI know of the new state
+    setGameState(gamestate);
+
     // The Doom 3: BFG Edition version of doom2.wad does not have a
     // TITLETPIC lump. Use INTERPIC instead as a workaround.
     if (bfgedition && !strcasecmp(pagename, "TITLEPIC")

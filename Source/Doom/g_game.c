@@ -596,6 +596,7 @@ void G_BuildTiccmd (ticcmd_t* cmd, int maketic)
     }
 } 
  
+extern void setGameState( unsigned char state);
 
 //
 // G_DoLoadLevel 
@@ -642,7 +643,8 @@ void G_DoLoadLevel (void)
     if (wipegamestate == GS_LEVEL) 
 	wipegamestate = -1;             // force a wipe 
 
-    gamestate = GS_LEVEL; 
+    gamestate = GS_LEVEL;
+    setGameState(gamestate);
 
     for (i=0 ; i<MAXPLAYERS ; i++) 
     { 
@@ -1478,7 +1480,9 @@ void G_DoCompleted (void)
 		, sizeof(wminfo.plyr[i].frags)); 
     } 
  
-    gamestate = GS_INTERMISSION; 
+    gamestate = GS_INTERMISSION;
+    setGameState(gamestate);
+
     viewactive = false; 
     automapactive = false; 
 
@@ -1519,6 +1523,8 @@ void G_WorldDone (void)
 void G_DoWorldDone (void) 
 {        
     gamestate = GS_LEVEL; 
+    setGameState(gamestate);
+
     gamemap = wminfo.next+1; 
     G_DoLoadLevel (); 
     gameaction = ga_nothing; 

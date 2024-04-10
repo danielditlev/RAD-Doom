@@ -998,6 +998,8 @@ void ST_doPaletteStuff(void)
 
 }
 
+extern void updateNumbers( boolean alive, int ammo, int health, int armor, int ammo1, int ammo_max1, int ammo2, int ammo_max2, int ammo3, int ammo_max3, int ammo4, int ammo_max4, boolean *arms, boolean* cards);
+
 void ST_drawWidgets(boolean refresh)
 {
     int		i;
@@ -1008,12 +1010,23 @@ void ST_drawWidgets(boolean refresh)
     // used by w_frags widget
     st_fragson = deathmatch && st_statusbaron; 
 
+    // This is ugly parameter parsing but it works
+    updateNumbers((plyr->playerstate == PST_LIVE),
+        *w_ready.num, *w_health.n.num, *w_armor.n.num,
+        *w_ammo[0].num, *w_maxammo[0].num,
+        *w_ammo[1].num, *w_maxammo[1].num,
+        *w_ammo[2].num, *w_maxammo[2].num,
+        *w_ammo[3].num, *w_maxammo[3].num,
+        &plyr->weaponowned,
+        &plyr->cards
+    );
+
     STlib_updateNum(&w_ready, refresh);
 
     for (i=0;i<4;i++)
     {
-	STlib_updateNum(&w_ammo[i], refresh);
-	STlib_updateNum(&w_maxammo[i], refresh);
+        STlib_updateNum(&w_ammo[i], refresh);
+        STlib_updateNum(&w_maxammo[i], refresh);
     }
 
     STlib_updatePercent(&w_health, refresh);
@@ -1022,12 +1035,12 @@ void ST_drawWidgets(boolean refresh)
     STlib_updateBinIcon(&w_armsbg, refresh);
 
     for (i=0;i<6;i++)
-	STlib_updateMultIcon(&w_arms[i], refresh);
+        STlib_updateMultIcon(&w_arms[i], refresh);
 
     STlib_updateMultIcon(&w_faces, refresh);
 
     for (i=0;i<3;i++)
-	STlib_updateMultIcon(&w_keyboxes[i], refresh);
+        STlib_updateMultIcon(&w_keyboxes[i], refresh);
 
     STlib_updateNum(&w_frags, refresh);
 
@@ -1400,6 +1413,14 @@ void ST_Start (void)
 
 void ST_Stop (void)
 {
+    updateNumbers(false,
+        0,0,0,
+        0,0,0,0,
+        0,0,0,0,
+        NULL,
+        NULL
+    );
+
     if (st_stopped)
 	return;
 
