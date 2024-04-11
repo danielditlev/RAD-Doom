@@ -1125,17 +1125,17 @@ inline void setPixel(int index, uint32_t color) {
 // DD: Tbh .. this is ugly
 boolean alive = false;
 
-uint8_t ammo = 0;
-uint8_t health = 0;
-uint8_t armor = 0;
+uint16_t ammo = 0;
+uint16_t health = 0;
+uint16_t armor = 0;
 
-uint8_t a_ammo[4] = { 0,0,0,0 };
-uint8_t a_ammoMax[4] = { 0,0,0,0 };
+uint16_t a_ammo[4] = { 0,0,0,0 };
+uint16_t a_ammoMax[4] = { 0,0,0,0 };
 
 boolean a_arms[6] = { 0,0,0,0,0,0,0 };
 boolean a_cards[6] = { 0,0,0,0,0,0,0 };
 
-uint8_t gameState = 1; // intermission
+uint8_t gameState = 1; // Intermission
 
 // DD: Tbh .. this is ugly too
 void updateNumbers( boolean _alive, int _ammo, int _health, int _armor, int _ammo1, int _ammo_max1, int _ammo2, int _ammo_max2, int _ammo3, int _ammo_max3, int _ammo4, int _ammo_max4, boolean* _arms, boolean* _cards)
