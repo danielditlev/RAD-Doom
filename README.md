@@ -47,7 +47,7 @@ To **configure the sound output**, check the *config.txt* on the SD-card. In cas
 
 Pressing *F1* while running Doom shows a help screen, *F3* toggles between mouse (port #2) and keyboard + joystick (also port #2) controls.
   
-Pressing 'u' will toggle an ingame C64/C128 friendly version of the game UI.
+Pressing 'U' will toggle a C64/C128 friendly version of the ingame UI / HUD.
 
 ## Technical Details
 

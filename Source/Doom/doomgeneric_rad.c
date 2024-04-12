@@ -1356,6 +1356,7 @@ void DG_DrawFrame()
 			printC64( "brightness ... E,D  ", x, y, color2 ); y += spacing;
 			printC64( "shuffle ...... F    ", x, y, color2 ); y += spacing;
 			printC64( "presets ...... R    ", x, y, color2 ); y += spacing;
+			printC64( "C= HUD ....... U    ", x, y, color2 ); y += spacing;
 			printC64( "show config .. F5   ", x, y, color2 ); y += spacing;
 
 			if ( mouseControlActive )
