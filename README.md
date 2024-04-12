@@ -9,7 +9,7 @@
 
 Welcome to this tech-demo for the **RAD Expansion Unit**. The "RAD" is a Raspberry Pi-powered cartridge/expansion for the C64 and C128 and, for example, can be used to emulate memory expansions (please have a look at its [main page](https://github.com/frntc/RAD)).
 
-In this tech-demo the **RAD replaces the MOS6510/8500/8502-CPU of your C64/C128** and natively runs DOOM on the ARM CPU. The purpose of the demo is to experiment with real-time graphics (on-the-fly color reduction and conversion from RGB-frame buffers), sound streaming to the SID, and using C64 peripherals such as keyboard, mouse and MIDI-interfaces. Note that it is currently set up for **PAL machines only**.
+In this tech-demo the **RAD replaces the MOS6510/8500/8502-CPU of your C64/C128** and natively runs DOOM on the ARM CPU. The purpose of the demo is to experiment with real-time graphics (on-the-fly color reduction and conversion from RGB-frame buffers), sound streaming to the SID, and using C64 peripherals such as keyboard, joystick, mouse and MIDI-interfaces. Note that it is currently set up for **PAL machines only**.
 
 In short, here is what you can experience:
 
@@ -37,7 +37,7 @@ In short, here is what you can experience:
 
 Obviously you need a RAD Expansion Unit (see [project page](https://github.com/frntc/RAD) on how to build and setup one) and a Raspberry Pi 3A+/3B+/Zero 2. To play Doom, first download the release archive of this project and copy it to a FAT-formatted SD-card.
 
-Second, you need to download the "doom1.wad" of the shareware version of Doom (e.g. from [doomwiki.org](https://doomwiki.org/wiki/DOOM1.WAD)) and copy it into the "RADDOOM" folder on the SD-card.
+Second, you need to download the "doom1.wad" of the shareware version of Doom (e.g. from [doomwiki.org](https://doomwiki.org/wiki/DOOM1.WAD)) and copy it into the "RADDOOM" folder on the SD-card. If you own a copy of Doom, Doom II, Final Doom: Plutonia Experiment, Final Doom: TNT: Evilution, Chex Quest, FreeDM, Freedoom: Phase 1 + 2, the WAD files from those games should also work. Any errors starting the game will be written into debug.txt on the SD-card.
 
 You also need a *sound font* in *.sf2*-format for the built-in MIDI synthesizer which plays via the SID or Digimax (the sound synthesis uses [TinySoundFont](https://github.com/schellingb/TinySoundFont)). This file also has to be copied to the "RADDOOM"-folder and named *"soundfont.sf2"*. One freely available sound font (but there are many others) is the [GeneralUser GS](http://schristiancollins.com/generaluser.php), which is also included in the [mt32pi](https://github.com/dwhinham/mt32-pi) release. mt32pi is a MIDI-synthesizer based on a Raspberry Pi which can be used with MIDI interfaces for the C64/C128. Note that the size of the sound font-file dominates the loading time.
 
@@ -45,8 +45,9 @@ Speaking of MIDI interfaces: external MIDI interfaces will requires a cartridge 
 
 To **configure the sound output**, check the *config.txt* on the SD-card. In case the RAD needs some timing adjustments, please follow the instructions on the RAD main page and adjust timings first with the standard RAD software.
 
-Pressing *F1* while running Doom shows a help screen, *F3* toggles between mouse (port #2) and keyboard controls.
+Pressing *F1* while running Doom shows a help screen, *F3* toggles between mouse (port #2) and keyboard + joystick (also port #2) controls.
   
+Pressing 'u' will toggle an ingame C64/C128 friendly version of the game UI.
 
 ## Technical Details
 
