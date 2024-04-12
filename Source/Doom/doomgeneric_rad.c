@@ -1330,7 +1330,7 @@ void DG_DrawFrame()
 			uint32_t color = 0xffffff;
 			uint32_t color2 = 0x5f5f5f;
 			int x = 4, spacing = 10;
-			int y = 10;
+			int y = 5;
 
 			if ( p != 8 ) color = color2 = 0;
 			x += ofs[ p ][ 0 ];
@@ -1340,7 +1340,8 @@ void DG_DrawFrame()
 			if ( !mouseControlActive )
 			{
 				printC64( "12345...       I    ", x, y, color ); y += spacing;
-				printC64( "              JKL   ", x, y, color ); y += spacing; y += spacing; y += spacing;
+				printC64( "              JKL   ", x, y, color ); y += spacing;
+				printC64( "            or JOY2 ", x, y, color ); y += spacing; y += spacing;
 				printC64( " C=   SHIFT    ZX   ", x, y, color ); y += spacing;
 			} else
 			{
@@ -1360,7 +1361,7 @@ void DG_DrawFrame()
 			printC64( "show config .. F5   ", x, y, color2 ); y += spacing;
 
 			if ( mouseControlActive )
-				{ printC64( "keyboard ..... F3      ", x, y, color2 ); y += spacing; } else
+				{ printC64( "keyboard + JOY F3      ", x, y, color2 ); y += spacing; } else
 				{ printC64( "mouse ........ F3      ", x, y, color2 ); y += spacing; }
 		}
 	} else
