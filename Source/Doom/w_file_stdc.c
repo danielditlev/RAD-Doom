@@ -28,7 +28,8 @@ typedef struct
     FILE *fstream;
 } stdc_wad_file_t;
 
-unsigned char filebuffer[ 8 * 1024 * 1024 ];// = NULL;
+// Buffed this to allow to the bigger wads in the list
+unsigned char filebuffer[ 32 * 1024 * 1024 ];// = NULL;
 
 extern wad_file_class_t stdc_wad_file;
 

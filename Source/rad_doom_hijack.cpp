@@ -429,6 +429,25 @@ u16 getResetVector()
 	return vec;
 }
 
+void readJoystick(unsigned char *joyData) {
+    unsigned char joyState;
+
+	// Update the DDR to let the CIA know we want to read the joystick
+    SPOKE(0xdc02, 0xe0);
+
+    // It takes 2 syncs to be SURE that the register is updated after setting the DDR ( https://www.c64-wiki.com/wiki/Paddle )
+    SPEEK(0xdc00, joyState);
+    SPEEK(0xdc00, joyState);
+
+    // Invert `joyState` since an activation is represented by a 0
+    joyState = ~joyState;
+
+    // Directly assign button states to joyData elements using bitwise AND and logical shift right operations.
+    for (int i = 0; i < 5; ++i) {
+		joyData[i] = (joyState >> i) & 1;
+	}
+}
+
 void readKeyDoom( unsigned int *kbEvents, unsigned char *nEvents )
 {
 	static int firstKeyScan = 1;
@@ -557,7 +576,7 @@ void restartIncrementalBlitter()
 
 extern "C" void handleMouseUpdate( uint8_t *mouseData );
 
-extern "C" void blitScreenDOOM( unsigned char *koalaData, unsigned int *kbEvents, unsigned char *nEvents, unsigned char *mouseData )
+extern "C" void blitScreenDOOM( unsigned char *koalaData, unsigned int *kbEvents, unsigned char *nEvents, unsigned char *mouseData, unsigned char *joyData, int *mouseControlActive )
 {
 	static u8 fc = 0;
 	register u32 g2;
@@ -656,6 +675,9 @@ extern "C" void blitScreenDOOM( unsigned char *koalaData, unsigned int *kbEvents
 	DisableIRQs();
 
 	readKeyDoom( kbEvents, nEvents );
+
+	// Read joydata if needed
+	if (!(*mouseControlActive)) readJoystick( joyData );
 
 	// prepare reading mouse
 	unsigned char tmp02, tmp00;

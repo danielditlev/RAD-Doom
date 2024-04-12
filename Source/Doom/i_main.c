@@ -31,13 +31,13 @@
 // calls all startup code, parses command line options.
 //
 
-void D_DoomMain (void);
+void D_DoomMain (char* wadPath);
 
 void M_FindResponseFile(void);
 
 void dg_Create();
 
-void startDoom()
+void startDoom(char* wadPath)
 {
     myargc = 0;
     myargv = NULL;
@@ -54,7 +54,7 @@ void startDoom()
 
 	dg_Create();
 
-	D_DoomMain ();
+	D_DoomMain (wadPath);
 
     //return 0;
 }

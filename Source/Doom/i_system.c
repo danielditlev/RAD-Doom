@@ -354,6 +354,31 @@ static int ZenityErrorBox(char *message)
 // I_Error
 //
 
+void vfdebug(const char* format, va_list args) {
+    char* filePath = "SD:debug.txt";
+    FILE* file = fopen(filePath, "a");
+    if (file == NULL) return;
+
+    // Use vfprintf to write the formatted string to the file
+    vfprintf(file, format, args);
+
+    // Optionally add a newline after appending the formatted string
+    fputc('\n', file);
+
+    // Close the file
+    fclose(file);
+}
+
+void fdebug(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    
+    vfdebug(format, args);
+    
+    va_end(args);
+}
+
+
 static boolean already_quitting = false;
 
 void I_Error (char *error, ...)
@@ -377,6 +402,10 @@ void I_Error (char *error, ...)
 
     // Message first.
     va_start(argptr, error);
+
+    // helps with logging any errors seen (if any)
+    vfdebug(error, argptr);
+
     //fprintf(stderr, "\nError: ");
     vfprintf(stderr, error, argptr);
     fprintf(stderr, "\n\n");

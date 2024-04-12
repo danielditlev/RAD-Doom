@@ -48,7 +48,7 @@
 #include <ctype.h>
 #include <arm_neon.h>
 
-extern void blitScreenDOOM( uint8_t *koalaData, uint32_t *kbEvents, uint8_t *nEvents, uint8_t *mouseData );
+extern void blitScreenDOOM( uint8_t *koalaData, uint32_t *kbEvents, uint8_t *nEvents, uint8_t *mouseData, uint8_t *joyData, uint32_t *mouseControlActive );
 extern void prepareC64();
 extern void disableInterrupts();
 extern void enableInterrupts();
@@ -130,6 +130,10 @@ static int displayHelp = 0;
 static int flickerMode = 0;
 static int16_t brightnessScale = 20;
 
+void setBrightness(uint8_t level) {
+	brightnessScale = level;
+} 
+
 void setDisplayPreset( int p )
 {
 	switch ( p )
@@ -158,6 +162,7 @@ void setDisplayPreset( int p )
 }
 
 static int mouseControlActive = 0;
+static boolean c64UIActivated = false;
 
 #define VK_F1  		133
 #define VK_F3  		134
@@ -289,6 +294,9 @@ int mouseMaxVal[ 2 ] = { 0, 0 };
 int mouseLastVal[ 2 ];
 uint8_t mouseFirstPos = 1;
 
+// Used when flipping in and out of c64 UI mode
+extern void R_SetViewSize( int blocks, int detail );
+
 static void addKeyToQueue( int pressed, uint8_t keyCode )
 {
 	uint8_t key = convertToDoomKey( keyCode );
@@ -332,6 +340,12 @@ static void addKeyToQueue( int pressed, uint8_t keyCode )
 			return;
 		case 'F': case 'f':
 			alternatePattern = 1 - alternatePattern;				displayStatus = 100; displayPreset = 0;
+			return;
+
+		case 'U': case 'u':
+			c64UIActivated = !c64UIActivated;
+			// Ignores prev state and switches between full size and nearly fullsize (both in hq)
+			R_SetViewSize((c64UIActivated) ? 11 : 10, 0);
 			return;
 
 /*		case 'F': case 'f':
@@ -951,17 +965,21 @@ int introShowFrame()
 	uint32_t  kbEvents[ 16 ];
 	uint8_t nEvents = 0;
 	uint8_t mouseData[ 4 ];
-	blitScreenDOOM( koalaData,  kbEvents, &nEvents, mouseData );
+	uint8_t joyData[ 5 ];
+	blitScreenDOOM( koalaData,  kbEvents, &nEvents, mouseData, joyData, &mouseControlActive );
 
-	if ( nEvents )
-		return 1;
+	if ( nEvents ) {
+		int key = kbEvents[0]; // Just look at the first key
+		key %= 256; // Ignore if pressed or released
+		return key;
+	}
 
 	return 0;
 }
 
 int (*functionAddress[]) (void) = {
    introPrepare,
-   introShowFrame,
+   introShowFrame
 };
 
 
@@ -996,6 +1014,156 @@ void printC64( const char *t, int x_, int y, uint32_t color )
 			}
 		}
 	}
+}
+
+// These will only be correct at brightness 12
+const unsigned int BLACK      = 0x000000; //  0
+const unsigned int WHITE      = 0xFFFFFF; //  1
+const unsigned int RED        = 0x68372B; //  2
+const unsigned int CYAN       = 0x70A4B2; //  3
+const unsigned int PURPLE     = 0x6F3D86; //  4
+const unsigned int GREEN      = 0x588D43; //  5
+const unsigned int BLUE       = 0x352879; //  6
+const unsigned int YELLOW     = 0xB8C76F; //  7
+const unsigned int ORANGE     = 0x6F4F25; //  8
+const unsigned int BROWN      = 0x433900; //  9
+const unsigned int PINK       = 0x9A6759; // 10
+const unsigned int DARKGREY   = 0x444444; // 11
+const unsigned int GREY       = 0x6C6C6C; // 12
+const unsigned int LIGHTGREEN = 0x9AD284; // 13
+const unsigned int LIGHTBLUE  = 0x6C5EB5; // 14
+const unsigned int LIGHTGREY  = 0x959595; // 15
+
+void c64Print( const char *t, int x, int y, unsigned int color, boolean outlined) {
+
+	if (outlined) {
+		// Creates the black outline
+		int ofs[8][2] = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1} };
+		for (int p = 0; p < 8; p++)
+			printC64(t, x + ofs[p][0], y + ofs[p][1], BLACK);
+	}
+
+	printC64(t, x, y, color);
+}
+
+void c64PrintScaled( const char *t, int x_, int y, uint32_t color, int scale_x, int scale_y )
+{
+	scale_x = max(1,scale_x);
+	scale_y = max(1,scale_y);
+
+    int len = strlen( t );
+
+    for ( int i = 0; i < len; i++ )
+    {
+        uint8_t c = t[ i ];
+        int x = x_ + i * 8;
+
+        if ( c == '@' )
+            c = 0;
+        else if ( c == '_' )
+            c = 100;
+        else if ( ( c >= 'a' ) && ( c <= 'z' ) )
+            c = c + 1 - 'a';
+
+        if ( c != 32 && c != ( 32 + 128 ) )
+        {
+            for ( int b = 0; b < 8; b++ )
+            {
+                uint8_t v = charset[ 2048 + c * 8 + b ];
+
+                for ( int p = 0; p < 7; p++ )
+                {
+                    if ( v & 128 )
+                    {
+	                    // Calculate indices for both pixels in each double-height pair
+    	                int index1 = (x+p) * scale_x + (y+b * scale_y) * 320;
+        	            int index2 = index1 + 320;
+
+						for (int sx=0; sx<scale_x; sx++) for (int sy=0; sy<scale_y; sy++) {
+							setPixel(index1 + sx, color);
+							setPixel(index2 + sy, color);
+						}
+                    }
+
+                    v <<= 1;
+                }
+            }
+        }
+    }
+}
+
+void c64PrintAvd( const char *t, int x, int y, unsigned int color, boolean outlined, int scale_x, unsigned int scale_y) {
+	if (outlined) {
+		// Creates the black outline
+		int ofs[8][2] = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1} };
+		for (int p = 0; p < 8; p++)
+			c64PrintScaled(t, x + ofs[p][0], y + ofs[p][1], BLACK, scale_x, scale_y);
+	}
+
+	c64PrintScaled(t, x, y, color, scale_x, scale_y);
+}
+
+void c64Fill(int x, int y, int width, int height, uint32_t color) {
+	// DD: Wonder if a menset per row would be faster here ..
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+            // Calculate the index in the DG_ScreenBuffer for each pixel in the square
+            int index = (x + col) + (y + row) * 320; // Assuming the screen is 320 pixels wide
+
+			setPixel(index, color);
+        }
+    }
+}
+
+// Ensure we dont go out of buffer
+inline void setPixel(int index, uint32_t color) {
+	if (index >= 64000) return; // Larger than 320x200 is no go 
+    DG_ScreenBuffer[index] = color;
+}
+
+
+// DD: Tbh .. this is ugly
+boolean alive = false;
+
+uint16_t ammo = 0;
+uint16_t health = 0;
+uint16_t armor = 0;
+
+uint16_t a_ammo[4] = { 0,0,0,0 };
+uint16_t a_ammoMax[4] = { 0,0,0,0 };
+
+boolean a_arms[6] = { 0,0,0,0,0,0,0 };
+boolean a_cards[6] = { 0,0,0,0,0,0,0 };
+
+uint8_t gameState = 1; // Intermission
+
+// DD: Tbh .. this is ugly too
+void updateNumbers( boolean _alive, int _ammo, int _health, int _armor, int _ammo1, int _ammo_max1, int _ammo2, int _ammo_max2, int _ammo3, int _ammo_max3, int _ammo4, int _ammo_max4, boolean* _arms, boolean* _cards)
+{
+	alive = _alive;
+	ammo = _ammo;
+	health = _health;
+	armor = _armor;
+
+	a_ammo[0] = _ammo1;
+	a_ammo[1] = _ammo2;
+	a_ammo[2] = _ammo3;
+	a_ammo[3] = _ammo4;
+
+	a_ammoMax[0] = _ammo_max1;
+	a_ammoMax[1] = _ammo_max2;
+	a_ammoMax[2] = _ammo_max3;
+	a_ammoMax[3] = _ammo_max4;
+
+	for (int i = 0; _arms != NULL && i < 6; i ++)
+		a_arms[i] = _arms[i+1] ? true : false;
+
+	for (int i = 0; _cards != NULL && i < 6; i ++)
+		a_cards[i] = _cards[i] ? true : false;
+}
+
+void setGameState(uint8_t state) {
+	gameState = state;
 }
 
 uint64_t endLastFrame = -1;
@@ -1043,6 +1211,10 @@ void handleMouseUpdate( uint8_t *mouseData )
 	mouseDoomData[ 3 ] = 1; // event generated
 }
 
+#define NUM_JOY_KEYS 5
+const unsigned char VK_CODES_JOY[NUM_JOY_KEYS] = { VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_COMMODORE };
+uint8_t joyDataPrev[ NUM_JOY_KEYS ] = { 0,0,0,0,0 };
+
 void DG_DrawFrame()
 {
 	if ( endLastFrame != -1 )
@@ -1075,6 +1247,75 @@ void DG_DrawFrame()
 		 s_KeyQueueReadIndex = 0;
 	}
 
+	// DD: Show the c64 UI if alive, activate and we aren't between levels
+	if (alive && gameState != 1 && c64UIActivated) {
+
+		int ammoWidth = 42;
+		int ammoWidth1 = max(0, min(ammoWidth, (ammoWidth * a_ammo[0]) / a_ammoMax[0]));
+		int ammoWidth2 = max(0, min(ammoWidth, (ammoWidth * a_ammo[1]) / a_ammoMax[1]));
+		int ammoWidth3 = max(0, min(ammoWidth, (ammoWidth * a_ammo[2]) / a_ammoMax[2]));
+		int ammoWidth4 = max(0, min(ammoWidth, (ammoWidth * a_ammo[4]) / a_ammoMax[3]));
+
+		c64Fill(272, 170, ammoWidth1, 6, GREEN);
+		c64Fill(272, 177, ammoWidth2, 6, GREEN);
+		c64Fill(272, 184, ammoWidth3, 6, GREEN);
+		c64Fill(272, 191, ammoWidth4, 6, GREEN);
+
+		c64Fill(110, 172, 6, 6, (a_arms[0]) ? GREEN : DARKGREY);
+		c64Fill(122, 172, 6, 6, (a_arms[1]) ? GREEN : DARKGREY);
+		c64Fill(134, 172, 6, 6, (a_arms[2]) ? GREEN : DARKGREY);
+		c64Fill(110, 182, 6, 6, (a_arms[3]) ? GREEN : DARKGREY);
+		c64Fill(122, 182, 6, 6, (a_arms[4]) ? GREEN : DARKGREY);
+		c64Fill(134, 182, 6, 6, (a_arms[5]) ? GREEN : DARKGREY);
+
+		int yellowColor = (brightnessScale >= 17) ? PINK : YELLOW;
+
+		c64Fill(238, 171, 8, 6, (a_cards[0] || a_cards[3]) ? BLUE : DARKGREY);
+		c64Fill(238, 181, 8, 6, (a_cards[1] || a_cards[4]) ? yellowColor : DARKGREY);
+		c64Fill(238, 191, 8, 6, (a_cards[2] || a_cards[5]) ? RED : DARKGREY);
+
+#ifdef FALSE
+		// Testing the colors
+		c64Fill(0, 0, 10, 10, BLACK);
+		c64Fill(0, 10, 10, 10, WHITE);
+		c64Fill(0, 20, 10, 10, RED);
+		c64Fill(0, 30, 10, 10, CYAN);
+		c64Fill(0, 40, 10, 10, PURPLE);
+		c64Fill(0, 50, 10, 10, GREEN);
+		c64Fill(0, 60, 10, 10, BLUE);
+		c64Fill(0, 70, 10, 10, YELLOW);
+		c64Fill(10, 0, 10, 10, ORANGE);
+		c64Fill(10, 10, 10, 10, BROWN);
+		c64Fill(10, 20, 10, 10, PINK);
+		c64Fill(10, 30, 10, 10, DARKGREY);
+		c64Fill(10, 40, 10, 10, GREY);
+		c64Fill(10, 50, 10, 10, LIGHTGREEN);
+		c64Fill(10, 60, 10, 10, LIGHTBLUE);
+		c64Fill(10, 70, 10, 10, LIGHTGREY);
+#endif
+
+		// Just for testing scaling
+		// _printC64_Adv("D", 2, 2, WHITE, 4, 4); // White
+
+		if (ammo < 1000) {
+			char s1[30];
+			sprintf(s1,"%3d", ammo);
+			c64PrintAvd(s1, 0, 171, RED, true, 2, 2);
+		}
+
+		if (health < 1000) {
+			char s2[30];
+			sprintf(s2,"%3d", health);
+			c64PrintAvd(s2, 28, 171, RED, true, 2, 2);
+		}
+
+		if (armor < 1000) {
+			char s3[30];
+			sprintf(s3,"%3d", armor);
+			c64PrintAvd(s3, 92, 171, RED, true, 2, 2);
+		}
+	}
+
 	// print static text 
 	int ofs[9][2]={ {-1,-1}, {-1,0},{-1,1}, {0,-1}, {0,1}, {1,-1},{1,0},{1,1},{0,0}};
 	if ( displayHelp )
@@ -1089,7 +1330,7 @@ void DG_DrawFrame()
 			uint32_t color = 0xffffff;
 			uint32_t color2 = 0x5f5f5f;
 			int x = 4, spacing = 10;
-			int y = 10;
+			int y = 5;
 
 			if ( p != 8 ) color = color2 = 0;
 			x += ofs[ p ][ 0 ];
@@ -1099,7 +1340,8 @@ void DG_DrawFrame()
 			if ( !mouseControlActive )
 			{
 				printC64( "12345...       I    ", x, y, color ); y += spacing;
-				printC64( "              JKL   ", x, y, color ); y += spacing; y += spacing; y += spacing;
+				printC64( "              JKL   ", x, y, color ); y += spacing;
+				printC64( "            or JOY2 ", x, y, color ); y += spacing; y += spacing;
 				printC64( " C=   SHIFT    ZX   ", x, y, color ); y += spacing;
 			} else
 			{
@@ -1115,10 +1357,11 @@ void DG_DrawFrame()
 			printC64( "brightness ... E,D  ", x, y, color2 ); y += spacing;
 			printC64( "shuffle ...... F    ", x, y, color2 ); y += spacing;
 			printC64( "presets ...... R    ", x, y, color2 ); y += spacing;
+			printC64( "C= HUD ....... U    ", x, y, color2 ); y += spacing;
 			printC64( "show config .. F5   ", x, y, color2 ); y += spacing;
 
 			if ( mouseControlActive )
-				{ printC64( "keyboard ..... F3      ", x, y, color2 ); y += spacing; } else
+				{ printC64( "keyboard + JOY F3      ", x, y, color2 ); y += spacing; } else
 				{ printC64( "mouse ........ F3      ", x, y, color2 ); y += spacing; }
 		}
 	} else
@@ -1204,12 +1447,25 @@ void DG_DrawFrame()
 	uint8_t nEvents = 0;
 
 	uint8_t mouseData[ 4 ];
-	blitScreenDOOM( koalaData,  kbEvents, &nEvents, mouseData );
+	uint8_t joyData[ 5 ];
+	blitScreenDOOM( koalaData, kbEvents, &nEvents, mouseData, joyData, &mouseControlActive );
 
+	if (!mouseControlActive) {
+		// Process joystick input by converting joystick state to key presses
+		for (int i = 0; i < NUM_JOY_KEYS; ++i) {
+			if (joyData[i] == 1 && joyDataPrev[i] == 0) {
+				addKeyToQueue(1, VK_CODES_JOY[i]); // key down
+			} else if (joyData[i] == 0 && joyDataPrev[i] == 1) {
+				addKeyToQueue(0, VK_CODES_JOY[i]); // key up
+			}
+		}
 
-	handleMouseUpdate( mouseData );
-
-	// todo: activate mouse by pressing button
+		// Update previous joystick data
+		memcpy(joyDataPrev, joyData, NUM_JOY_KEYS);		
+	} else {
+		// todo: activate mouse by pressing button
+		handleMouseUpdate( mouseData );
+	}
 
 	for ( int i = 0; i < nEvents; i++ )
 	{

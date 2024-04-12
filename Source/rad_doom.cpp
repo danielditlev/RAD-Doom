@@ -38,6 +38,7 @@
 #include "linux/kernel.h"
 #include "config.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <circle/usertimer.h>
@@ -148,7 +149,7 @@ unsigned fiqRegOffset;
 u32		 fiqRegMask;
 u32		 temperature;
 
-extern "C" void startDoom();
+extern "C" void startDoom(char* wadPath);
 
 CTimer				*pTimer;
 
@@ -274,15 +275,227 @@ const uint8_t ditherMatrix4x4_line[ 4 * 4 ] = {
 	 8, 12, 10, 14,
 	 3,  7,  1,  5,
 	11, 15,  9, 13 };
-	
+
 extern int palette_pepto[ 16 ][ 3 ];
 
 extern "C" int (*functionAddress[]) (void);
 
 extern "C" { void printC64( const char *t, int x_, int y, unsigned int color ); }
 
-void doIntro()
+extern "C" { boolean M_FileExists(char *filename); }
+
+// Needed for printC64
+extern uint8_t font_bin[ 4096 ];
+extern uint8_t *charset;
+
+void _printC64( const char *t, int x, int y, unsigned int color = 0xffffff, unsigned int outline_color = 0x0) {
+	// Creates the black outline
+	int ofs[9][2] = {{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}, {0, 0}};
+	for (int p = 0; p < 9; p++) {
+		uint32_t _color = color;
+
+		if (p != 8) _color = outline_color; // Black outline
+
+		printC64(t, x + ofs[p][0], y + ofs[p][1], _color);
+	}
+}
+
+// Menu item structure
+typedef struct {
+    char* path;
+    char* name;
+    char key; // To store the generated menu key
+    char menuLine[30]; // To store the display text
+    bool exists; // Flag indicating whether the file exists or not
+} MenuItem;
+
+const unsigned int BLACK      = 0x000000; //  0
+const unsigned int WHITE      = 0xFFFFFF; //  1
+const unsigned int RED        = 0x68372B; //  2
+const unsigned int CYAN       = 0x70A4B2; //  3
+const unsigned int PURPLE     = 0x6F3D86; //  4
+const unsigned int GREEN      = 0x588D43; //  5
+const unsigned int BLUE       = 0x352879; //  6
+const unsigned int YELLOW     = 0xB8C76F; //  7
+const unsigned int ORANGE     = 0x6F4F25; //  8
+const unsigned int BROWN      = 0x433900; //  9
+const unsigned int PINK       = 0x9A6759; // 10
+const unsigned int DARKGREY   = 0x444444; // 11
+const unsigned int GREY       = 0x6C6C6C; // 12
+const unsigned int LIGHTGREEN = 0x9AD284; // 13
+const unsigned int LIGHTBLUE  = 0x6C5EB5; // 14
+const unsigned int LIGHTGREY  = 0x959595; // 15
+
+
+
+// Ensure we dont go out of buffer
+inline void setPixel(int index, uint32_t color) {
+	extern unsigned int *DG_ScreenBuffer;
+
+	if (index >= 64000) return; // Larger than 320x200 is no go 
+    DG_ScreenBuffer[index] = color;
+}
+
+void c64Fill(int x, int y, int width, int height, uint32_t color) {
+	// DD: Wonder if a menset per row would be faster here ..
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+            // Calculate the index in the DG_ScreenBuffer for each pixel in the square
+            int index = (x + col) + (y + row) * 320; // Assuming the screen is 320 pixels wide
+
+			setPixel(index, color);
+        }
+    }
+}
+
+// All the WADS supported by doomgeneric .. not sure all works with RAD yet
+MenuItem items[] = {
+	{"SD:RADDOOM/DOOM.WAD", "Doom SW", 0, "", false},
+	{"SD:RADDOOM/DOOM1.WAD", "Doom", 0, "", false},
+	{"SD:RADDOOM/DOOM2.WAD", "DoomII", 0, "", false},
+	{"SD:RADDOOM/plutonia.wad", "FDoom P.E.", 0, "", false},
+	{"SD:RADDOOM/tnt.wad", "FDoom TNT E.", 0, "", false},
+	{"SD:RADDOOM/chex.wad", "Chex Quest", 0, "", false},
+	{"SD:RADDOOM/hacx.wad", "Hacx", 0, "", false},
+	{"SD:RADDOOM/freedm.wad", "FreeDM", 0, "", false},
+	{"SD:RADDOOM/freedoom1.wad", "Freedoom P1", 0, "", false},
+	{"SD:RADDOOM/freedoom2.wad", "Freedoom P2", 0, "", false}
+};
+
+const u_int8_t _FSIZE = 10;
+const u_int8_t _WIDTH = 320 / _FSIZE;
+const u_int8_t _HEIGHT = 200 / _FSIZE;
+
+// Flames buffer
+unsigned int FLAMES[_WIDTH * _HEIGHT];
+
+void generateFlamesBase() {
+    for (int x = 0; x < _WIDTH; ++x) {
+        FLAMES[(_HEIGHT - 1) * _WIDTH + x] = WHITE;
+    }
+}
+
+void updateFlames() {
+    for (int y = 0; y < _HEIGHT - 1; ++y) {
+        for (int x = 0; x < _WIDTH; ++x) {
+            int sameColorNeighbors = 0;
+            unsigned int belowColor = FLAMES[(y + 1) * _WIDTH + x];
+            
+            if (x > 0          && FLAMES[y * _WIDTH + (x - 1)] == belowColor) sameColorNeighbors++;
+            if (x < _WIDTH - 1 && FLAMES[y * _WIDTH + (x + 1)] == belowColor) sameColorNeighbors++;
+            
+            float transitionChance = (float)rand() / RAND_MAX - 0.1f * sameColorNeighbors;
+            
+            if (belowColor == WHITE && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = YELLOW;
+            } else if (belowColor == YELLOW && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = ORANGE;
+            } else if (belowColor == ORANGE && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = RED;
+            } else if (belowColor == RED && transitionChance < 0.6f) {
+                FLAMES[y * _WIDTH + x] = BLACK;
+            } else {
+                FLAMES[y * _WIDTH + x] = belowColor; // Keep the same color if no transition
+            }
+        }
+    }
+}
+
+extern "C" void setBrightness(uint8_t level);
+
+int showInfo() {
+	extern unsigned int *DG_ScreenBuffer;
+	setBrightness(12); // Lower the brightness to match the original C64 colors
+
+	memset( DG_ScreenBuffer, BLACK, 320 * 200 * 4 );
+
+    // Init charset  
+    charset = font_bin;
+
+    char nextMenuKey = 65; // ASCII 'A'
+
+    // Check if files exist and prepare menu lines
+	int _i = -1;
+	int numItems = sizeof(items) / sizeof(items[0]);
+    for (int i = 0; i < numItems; i++) {
+        items[i].exists = M_FileExists(items[i].path);
+        if (items[i].exists) {
+            items[i].key = nextMenuKey++;
+            sprintf(items[i].menuLine, "%c.) %s", items[i].key, items[i].name);
+			_i = i; // store index of last found wad
+        }
+    }
+
+	// Only one wad found .. use that one
+	if (nextMenuKey == 66) return _i;
+
+    uint64_t curTick = GetuSec();
+    char debug[30];
+    char lastKeyPressed = 0;
+    sprintf(debug, "pressed: %c", lastKeyPressed);
+
+	srand(0);
+	generateFlamesBase();
+
+	u_int16_t fps = 0;
+    while (1) {
+
+		// Lower animation speed
+		if (fps++ % 4 == 0) updateFlames();
+
+		for (int row=0; row < _HEIGHT; row ++) 
+			for (int col=0; col < _WIDTH; col ++)
+				c64Fill(col * _FSIZE, row * _FSIZE, _FSIZE, _FSIZE, FLAMES[row * _WIDTH + col]);
+
+		printC64("ditlew", 110, 182, BLACK);
+
+        int x = 4, y = 10, spacing = 10;
+
+        for (int i = 0; i < numItems; i++) {
+            if (items[i].exists) {
+                _printC64(items[i].menuLine, x, y, (items[i].key % 2) ? WHITE : CYAN); y += spacing;
+            }
+        }
+
+        if (_i == -1) {
+            _printC64("No wads found :(", x, y); y += spacing;
+        }
+
+        // if (lastKeyPressed) {
+        //     _printC64(debug, x, y); y += spacing;
+        // }
+
+        // oh no, we're faster than 50 Hz, better wait :)
+        uint64_t waitStart = curTick;
+        do {
+            curTick = GetuSec();
+        } while (curTick - waitStart < 1000 * 12);
+
+        char key = (*functionAddress[1])();
+        for (int i = 0; i < sizeof(items) / sizeof(items[0]); i++) {
+            if (key == items[i].key && items[i].exists) {
+				
+				// Clear screen before we return;
+				memset( DG_ScreenBuffer, 0, 320 * 200 * 4 );
+
+				setBrightness(20);
+                return i;
+            }
+        }
+
+        lastKeyPressed = key;
+        sprintf(debug, "pressed: %c", lastKeyPressed);
+    }
+
+	setBrightness(20);
+
+    return 0;
+}
+
+int doIntro()
 {
+	int itemIndex = 0;
+
 	wavMemory = new u8[ 8192 * 1024 ];
 	
 	FILE *f = fopen( "SD:RADDOOM/dazzler_ex.wav", "rb" );
@@ -540,10 +753,14 @@ void doIntro()
 
 		int key = (*functionAddress[1])();
 
-		if ( key ) fadeOut = 0;
+		if ( key )  fadeOut = 0;
 
 		if ( fadeOut >= 256 )
 		{
+			// Stop sounds here
+			memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
+			itemIndex = showInfo();
+
 			for ( int y = 0; y < 200; y ++ )
 			{
 				for ( int x = 0; x < 320; x += 2 )
@@ -570,9 +787,11 @@ void doIntro()
 
 		introFC ++;
 	}
-	memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
+	//memset( soundRingBuffer, 0, SOUND_RINGBUF_SIZE );
 
 	EnableIRQs();
+
+	return itemIndex;
 }
 
 #endif
@@ -612,14 +831,16 @@ void  CRAD::Run( void )
 	sidtimer = new CUserTimer( &m_Interrupt, sidSamplePlayIRQ, this, !true );
 	sidtimer->Initialize();
 
+	int itemIndex = 0;
+
 #ifdef SHOW_INTRO
-	doIntro();
+	itemIndex = doIntro();
 
 	extern void restartIncrementalBlitter();
 	restartIncrementalBlitter();
 #endif
 
-	startDoom();
+	startDoom(items[itemIndex].path + 3); // Omit SD:
 }
 
 extern "C" void radMountFileSystem()
